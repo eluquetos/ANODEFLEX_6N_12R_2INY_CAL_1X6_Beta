@@ -69,12 +69,11 @@ function render(){
 function setRheostat(id,value){$("reo-"+id).value=Math.round(Math.max(0,value)*1000)/1000}
 function assistedAdjustment(){
   if(!state.fixed){showMessage("Calibre primero las resistencias del sistema.","error");return}
-  const targets=Object.fromEntries(ids.map(id=>[id,n("target-"+id)])),maxReo=n("reo-max"),input={V:n("live-v"),...cableArgs(state.nominal.cables),fixed:state.fixed,targets,maxReo};
+  const targets=Object.fromEntries(ids.map(id=>[id,n("target-"+id)])),maxReo=n("reo-max"),input={...cableArgs(state.nominal.cables),fixed:state.fixed,targets,maxReo};
   if(!Object.values(targets).every(value=>Number.isFinite(value)&&value>0)||!Number.isFinite(maxReo)||maxReo<=0){showMessage("Las doce corrientes y el reóstato máximo deben ser mayores que cero.","error");return}
   let result;try{result=AnodeflexModel.adjust(input)}catch{showMessage("No se pudo calcular el ajuste con los datos ingresados.","error");return}
-  if(result.reason==="voltage"){showMessage("La tensión disponible no alcanza para alimentar los seis nodos desde el nodo 1.","error");return}
   if(!result.feasible){const parts=[];if(result.negative.length)parts.push("Ramas "+result.negative.join(", ")+": requieren reducir la resistencia del sistema o aumentar la tensión");if(result.over.length)parts.push("Ramas "+result.over.join(", ")+": superan el máximo de "+fmt(maxReo,2)+" Ω");showMessage("Ajuste no alcanzable. "+parts.join(". ")+".","error");return}
-  ids.forEach(id=>setRheostat(id,result.rheostats[id]));solve();showMessage("Ajuste calculado. "+nodeText(result.voltages)+".","success");
+  $("live-v").value=result.V;ids.forEach(id=>setRheostat(id,result.rheostats[id]));solve();showMessage("Ajuste calculado con la tensión mínima de "+fmt(result.V,2)+" V. Reóstato en 0 Ω: "+result.zero.join(", ")+".","success");
 }
 
 function persist(){localStorage.setItem("anodeflex-3-3-6-1iny-fixed",JSON.stringify({fixed:state.fixed,stateNominal:state.nominal}))}
@@ -96,7 +95,7 @@ function wireEvents(){
   ids.forEach(id=>{$("reo-"+id).addEventListener("input",solve);$("target-"+id).addEventListener("input",solve);$("system-r-"+id).addEventListener("input",solve)});
   $("reset-rheostats").addEventListener("click",()=>{ids.forEach(id=>setRheostat(id,0));solve()});$("assist").addEventListener("click",assistedAdjustment);$("tolerance").addEventListener("input",solve);$("save-case").addEventListener("click",saveCase);$("load-case").addEventListener("click",()=>$("case-file").click());$("case-file").addEventListener("change",event=>{if(event.target.files[0])loadCase(event.target.files[0]);event.target.value=""});$("print-report").addEventListener("click",()=>window.print());
 }
-function restore(){try{const saved=JSON.parse(localStorage.getItem("anodeflex-3-3-6-1iny-fixed"));if(saved?.fixed&&saved?.stateNominal){state.fixed=saved.fixed;state.nominal=saved.stateNominal;ids.forEach(id=>{$("fixed-r"+id).textContent=fmt(state.fixed[id],2)+" Ω";$("system-r-"+id).value=Number(state.fixed[id]).toFixed(2)});$("fixed-nodes").textContent=nodeText(state.nominal.voltages);$("live-v").value=state.nominal.VA;solve();return}}catch{}computeFixed()}
+function restore(){try{const saved=JSON.parse(localStorage.getItem("anodeflex-3-3-6-1iny-fixed"));if(saved?.fixed&&saved?.stateNominal){state.fixed=saved.fixed;state.nominal=saved.stateNominal;$("nom-va").value=state.nominal.VA;$("nom-vb").value=state.nominal.VB;$("live-v").value=state.nominal.VA;nodes.forEach(node=>$("rc"+node).value=state.nominal.cables[node]);ids.forEach(id=>{$("nom-i"+id).value=state.nominal.currents[id];$("target-"+id).value=state.nominal.currents[id];$("fixed-r"+id).textContent=fmt(state.fixed[id],2)+" Ω";$("system-r-"+id).value=Number(state.fixed[id]).toFixed(2)});$("fixed-nodes").textContent=nodeText(state.nominal.voltages);solve();return}}catch{}computeFixed()}
 
 let installPrompt=null;window.addEventListener("beforeinstallprompt",event=>{event.preventDefault();installPrompt=event;$("install-app").hidden=false});$("install-app").addEventListener("click",async()=>{if(!installPrompt)return;installPrompt.prompt();await installPrompt.userChoice;installPrompt=null;$("install-app").hidden=true});
 buildBranches();wireEvents();restore();if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js"));

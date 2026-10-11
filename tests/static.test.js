@@ -13,5 +13,7 @@ assert.ok(app.includes('id="system-r-${id}"')&&app.includes('id="reo-power-${id}
 assert.ok(!html.includes('type="range"'));
 const manifest=JSON.parse(fs.readFileSync(path.join(root,"manifest.webmanifest"),"utf8"));
 assert.equal(manifest.display,"standalone");assert.equal(manifest.short_name,"ANODEFLEX 3+3");
-assert.ok(fs.readFileSync(path.join(root,"sw.js"),"utf8").includes("anodeflex-3-3-6-1iny-v3"));
+assert.ok(app.includes('$("live-v").value=result.V'));assert.ok(html.includes("la aplicación calcula el voltaje mínimo y los reóstatos"));
+for(const file of ["styles.css","model.js","app.js"])assert.ok(html.includes(`${file}?v=4`));
+assert.ok(fs.readFileSync(path.join(root,"sw.js"),"utf8").includes("anodeflex-3-3-6-1iny-v4"));
 console.log("Archivos de la app ANODEFLEX 3 + 3: correctos");

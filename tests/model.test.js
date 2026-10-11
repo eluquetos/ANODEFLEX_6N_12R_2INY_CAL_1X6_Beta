@@ -24,12 +24,12 @@ assert.ok(Math.abs(operating.pError)<1e-10,"balance de potencia");
 assert.ok(Math.abs(operating.It-nominal.It)>1e-3,"la regulación usa una fuente, distinta de las dos mediciones");
 
 const targets=Object.fromEntries(model.IDS.map(id=>[id,.2]));
-const adjusted=model.adjust({V:24,...cables,fixed:nominal.fixed,targets,maxReo:1000});
+const adjusted=model.adjust({...cables,fixed:nominal.fixed,targets,maxReo:1000});
 assert.equal(adjusted.feasible,true);
-const solved=model.simulate({V:24,...cables,fixed:nominal.fixed,rheostats:adjusted.rheostats});
+assert.ok(adjusted.zero.length>=1);assert.equal(Math.min(...Object.values(adjusted.rheostats)),0);
+const solved=model.simulate({V:adjusted.V,...cables,fixed:nominal.fixed,rheostats:adjusted.rheostats});
 for(const id of model.IDS)assert.ok(Math.abs(solved.currents[id]-targets[id])<1e-10,`objetivo I${id}`);
-assert.equal(model.adjust({V:1,...cables,fixed:nominal.fixed,targets,maxReo:1000}).reason,"voltage");
-const over=model.adjust({V:24,...cables,fixed:nominal.fixed,targets,maxReo:1});
+const over=model.adjust({...cables,fixed:nominal.fixed,targets,maxReo:1});
 assert.equal(over.feasible,false);assert.ok(over.over.length>0);
 assert.throws(()=>model.dimension({VA:1,VB:24,...cables,currents}),error=>error.message==="voltage-exhausted"&&error.side==="A");
 assert.throws(()=>model.dimension({VA:24,VB:.1,...cables,currents}),error=>error.message==="voltage-exhausted"&&error.side==="B");

@@ -52,17 +52,17 @@
   }
 
   function adjust(input){
-    const V=Number(input.V),cables=cablesFrom(input),targets=input.targets,maxReo=Number(input.maxReo);
-    if(!positive(V)||!positive(maxReo)||!validCables(cables)||IDS.some(id=>!positive(targets[id])||!positive(input.fixed[id])))throw new Error("invalid-target");
-    const trunks={},voltages={};let voltage=V;
+    const cables=cablesFrom(input),targets=input.targets,maxReo=Number(input.maxReo);
+    if(!positive(maxReo)||!validCables(cables)||IDS.some(id=>!positive(targets[id])||!positive(input.fixed[id])))throw new Error("invalid-target");
+    const trunks={},drops={};let drop=0;
     for(const node of NODES){
       trunks[node]=sum(NODES.filter(n=>n>=node).flatMap(nodeIds).map(id=>targets[id]));
-      voltage-=trunks[node]*cables[node];voltages[node]=voltage;
-      if(voltage<=0)return {feasible:false,reason:"voltage",voltages,trunks};
+      drop+=trunks[node]*cables[node];drops[node]=drop;
     }
-    const rheostats=Object.fromEntries(IDS.map(id=>[id,voltages[Number(id[0])]/targets[id]-input.fixed[id]]));
-    const negative=IDS.filter(id=>rheostats[id]<-1e-8),over=IDS.filter(id=>rheostats[id]>maxReo+1e-8);
-    return {feasible:negative.length===0&&over.length===0,voltages,trunks,rheostats,negative,over};
+    const V=Math.max(...IDS.map(id=>drops[Number(id[0])]+targets[id]*input.fixed[id])),voltages=Object.fromEntries(NODES.map(node=>[node,V-drops[node]]));
+    const rheostats=Object.fromEntries(IDS.map(id=>{const value=voltages[Number(id[0])]/targets[id]-input.fixed[id];return [id,Math.abs(value)<1e-8?0:value]}));
+    const negative=IDS.filter(id=>rheostats[id]<-1e-8),over=IDS.filter(id=>rheostats[id]>maxReo+1e-8),zero=IDS.filter(id=>rheostats[id]===0);
+    return {feasible:negative.length===0&&over.length===0,V,voltages,trunks,rheostats,negative,over,zero};
   }
 
   return {NODES,IDS,SIDES,dimensionSide,dimension,simulate,adjust};

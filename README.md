@@ -13,7 +13,7 @@ Cada lado se calibra de forma independiente con sus seis corrientes medidas y lo
 
 Una sola fuente `V` alimenta los seis nodos desde el nodo 1. La corriente pasa por `Rc1` a `Rc6` en secuencia, con dos ramas en paralelo en cada nodo. `V` es una entrada independiente de `VA` y `VB`.
 
-La app permite editar tensión de trabajo, resistencias fijas, corrientes objetivo y reóstatos. Calcula el ajuste de reóstatos, indica cuando es inviable y muestra corrientes, caídas, potencias y balances. Permite exportar e importar casos JSON e imprimir un informe.
+La app calcula la tensión mínima y los reóstatos a partir de las doce corrientes objetivo, dejando al menos un reóstato en 0 Ω. La tensión y los reóstatos también pueden editarse manualmente. Indica cuando el ajuste supera el reóstato máximo y muestra corrientes, caídas, potencias y balances. Permite exportar e importar casos JSON e imprimir un informe.
 
 ## Pruebas y publicación
 
