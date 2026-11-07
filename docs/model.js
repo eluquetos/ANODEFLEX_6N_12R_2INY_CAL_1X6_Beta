@@ -10,16 +10,18 @@
   const nodeIds=node=>[`${node}1`,`${node}2`];
 
   function dimensionSide(input,side){
-    const {voltage:voltageKey,nodes}=SIDES[side],source=Number(input[voltageKey]),cables=cablesFrom(input),currents=input.currents;
-    if(!positive(source)||!validCables(cables)||nodes.some(node=>nodeIds(node).some(id=>!positive(currents[id]))))throw new Error("invalid-input");
-    const voltages={},trunks={},fixed={};let voltage=source;
+    const {voltage:voltageKey,nodes}=SIDES[side],source=Number(input[voltageKey]),currents=input.currents;
+    if(!positive(source)||!currents||nodes.some(node=>nodeIds(node).some(id=>!positive(currents[id]))))throw new Error("invalid-input");
+    const voltages={},trunks={},fixed={},cables={};let previous=source;
     for(const node of nodes){
+      const voltage=Number(input.voltages?.[node]);
+      if(!positive(voltage))throw new Error("invalid-input");
+      if(voltage>previous){const error=new Error("voltage-rise");error.side=side;error.node=node;throw error}
       trunks[node]=sum(nodes.filter(n=>n>=node).flatMap(nodeIds).map(id=>currents[id]));
-      voltage-=trunks[node]*cables[node];voltages[node]=voltage;
-      if(voltage<=0){const error=new Error("voltage-exhausted");error.side=side;throw error}
+      voltages[node]=voltage;cables[node]=(previous-voltage)/trunks[node];previous=voltage;
       for(const id of nodeIds(node))fixed[id]=voltage/currents[id];
     }
-    return {source,voltages,trunks,fixed,cables:Object.fromEntries(nodes.map(node=>[node,cables[node]])),It:trunks[nodes[0]]};
+    return {source,voltages,trunks,fixed,cables,It:trunks[nodes[0]]};
   }
 
   function dimension(input){

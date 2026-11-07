@@ -3,7 +3,9 @@ const model=require("../docs/model.js");
 
 const currents={11:1.2,12:1,21:.9,22:.9,31:.8,32:.7,41:.6,42:.5,51:.5,52:.4,61:.4,62:.3};
 const cables={Rc1:.4,Rc2:.3,Rc3:.25,Rc4:.2,Rc5:.15,Rc6:.1};
-const nominal=model.dimension({VA:24,VB:24,...cables,currents});
+const measured={1:21.8,2:20.81,3:20.435,4:23.46,5:23.22,6:23.15};
+const nominal=model.dimension({VA:24,VB:24,voltages:measured,currents});
+for(const node of model.NODES)assert.ok(Math.abs(nominal.cables[node]-cables[`Rc${node}`])<1e-10,`resistencia Rc${node}`);
 assert.deepEqual(model.NODES,[1,2,3,4,5,6]);
 assert.equal(model.IDS.length,12);
 const expectedVoltages={1:21.8,2:20.81,3:20.435,4:23.46,5:23.22,6:23.15};
@@ -31,6 +33,10 @@ const solved=model.simulate({V:adjusted.V,...cables,fixed:nominal.fixed,rheostat
 for(const id of model.IDS)assert.ok(Math.abs(solved.currents[id]-targets[id])<1e-10,`objetivo I${id}`);
 const over=model.adjust({...cables,fixed:nominal.fixed,targets,maxReo:1});
 assert.equal(over.feasible,false);assert.ok(over.over.length>0);
-assert.throws(()=>model.dimension({VA:1,VB:24,...cables,currents}),error=>error.message==="voltage-exhausted"&&error.side==="A");
-assert.throws(()=>model.dimension({VA:24,VB:.1,...cables,currents}),error=>error.message==="voltage-exhausted"&&error.side==="B");
+assert.throws(()=>model.dimension({VA:1,VB:24,voltages:measured,currents}),error=>error.message==="voltage-rise"&&error.side==="A");
+assert.throws(()=>model.dimension({VA:24,VB:.1,voltages:measured,currents}),error=>error.message==="voltage-rise"&&error.side==="B");
+assert.throws(()=>model.dimension({VA:24,VB:24,voltages:{...measured,2:22},currents}),/voltage-rise/);
+assert.throws(()=>model.dimension({VA:24,VB:24,voltages:{...measured,3:0},currents}),/invalid-input/);
+assert.throws(()=>model.dimension({VA:24,VB:24,voltages:measured,currents:{...currents,31:0}}),/invalid-input/);
+const equal=model.dimension({VA:24,VB:24,voltages:{...measured,2:21.8},currents});assert.equal(equal.cables[2],0);
 console.log("Modelo ANODEFLEX 3 + 3 / 6 nodos: correcto");

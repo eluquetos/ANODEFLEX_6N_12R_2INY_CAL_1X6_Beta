@@ -1,6 +1,6 @@
 {
-  "name": "ANODEFLEX 3 + 3 · 1 Inyección",
-  "short_name": "ANODEFLEX 3+3",
+  "name": "ANODEFLEX 3 + 3 · Beta",
+  "short_name": "ANODEFLEX Beta",
   "description": "Medición con dos grupos de tres nodos y regulación de doce ramas con una inyección desde el nodo 1.",
   "start_url": "./",
   "display": "standalone",

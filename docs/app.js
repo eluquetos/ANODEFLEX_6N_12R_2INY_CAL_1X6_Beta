@@ -2,10 +2,10 @@ const nodes=[1,2,3,4,5,6];
 const ids=nodes.flatMap(node=>[`${node}1`,`${node}2`]);
 const state={fixed:null,nominal:null,op:null};
 const $=id=>document.getElementById(id);
-const n=id=>Number($(id).value);
+const n=id=>$(id).value.trim()===""?NaN:Number($(id).value);
 const fmt=(value,digits=3)=>Number.isFinite(value)?value.toLocaleString("es-EC",{minimumFractionDigits:digits,maximumFractionDigits:digits}):"—";
 const powerFmt=value=>Number.isFinite(value)?value.toFixed(2):"—";
-const cableInputs=()=>Object.fromEntries(nodes.map(node=>[`Rc${node}`,n(`rc${node}`)]));
+const voltageInputs=()=>Object.fromEntries(nodes.map(node=>[node,n(`nom-v${node}`)]));
 const cableArgs=cables=>Object.fromEntries(nodes.map(node=>[`Rc${node}`,cables[node]]));
 const fixedInputs=()=>Object.fromEntries(ids.map(id=>[id,n("system-r-"+id)]));
 const nodeText=voltages=>nodes.map(node=>`V${node} ${fmt(voltages[node],2)} V`).join(" · ");
@@ -23,19 +23,19 @@ function buildBranches(){
     </article>`).join("");
 }
 
-function calibrationInput(){return {VA:n("nom-va"),VB:n("nom-vb"),...cableInputs(),currents:Object.fromEntries(ids.map(id=>[id,n("nom-i"+id)]))}}
+function calibrationInput(){return {VA:n("nom-va"),VB:n("nom-vb"),voltages:voltageInputs(),currents:Object.fromEntries(ids.map(id=>[id,n("nom-i"+id)]))}}
 
 function computeFixed(){
-  const input=calibrationInput(),values=[input.VA,input.VB,...nodes.map(node=>input[`Rc${node}`]),...Object.values(input.currents)];
-  if(!values.every(Number.isFinite)||input.VA<=0||input.VB<=0||nodes.some(node=>input[`Rc${node}`]<0)||Object.values(input.currents).some(value=>value<=0)){
-    showMessage("Revise los datos: VA, VB y las corrientes deben ser mayores que cero; Rc1 a Rc6 no pueden ser negativas.","error");return;
+  const input=calibrationInput(),values=[input.VA,input.VB,...Object.values(input.voltages),...Object.values(input.currents)];
+  if(!values.every(value=>Number.isFinite(value)&&value>0)){
+    showMessage("Revise los datos: los voltajes y las corrientes deben ser mayores que cero.","error");return;
   }
   let result;
   try{result=AnodeflexModel.dimension(input)}
-  catch(error){const side=error.side?` en el lado ${error.side}`:"";showMessage(error.message==="voltage-exhausted"?`Las caídas en los cables consumen la tensión disponible${side}. Reduzca corrientes o resistencias de cable, o aumente el voltaje.`:"No se pudo obtener un conjunto físico de resistencias.","error");return}
+  catch(error){showMessage(error.message==="voltage-rise"?`El voltaje V${error.node} del lado ${error.side} supera el voltaje anterior; revise las mediciones.`:"No se pudo obtener un conjunto físico de resistencias.","error");return}
   state.fixed=result.fixed;state.nominal=result;
-  ids.forEach(id=>{$("fixed-r"+id).textContent=fmt(result.fixed[id],2)+" Ω";$("system-r-"+id).value=result.fixed[id].toFixed(2);$("target-"+id).value=input.currents[id];setRheostat(id,0)});
-  $("fixed-nodes").textContent=nodeText(result.voltages);$("live-v").value=input.VA;
+  ids.forEach(id=>{$("fixed-r"+id).textContent=fmt(result.fixed[id],2)+" Ω";$("system-r-"+id).value=String(result.fixed[id]);$("target-"+id).value=input.currents[id];setRheostat(id,0)});
+  nodes.forEach(node=>$("cable-r"+node).textContent=fmt(result.cables[node],3)+" Ω");$("fixed-nodes").textContent=nodeText(result.voltages);$("live-v").value=input.VA;
   persist();showMessage("Resistencias calculadas para los lados A y B. Ya puede regular las doce ramas.","success");solve();
 }
 
@@ -76,17 +76,17 @@ function assistedAdjustment(){
   $("live-v").value=result.V;ids.forEach(id=>setRheostat(id,result.rheostats[id]));solve();showMessage("Ajuste calculado con la tensión mínima de "+fmt(result.V,2)+" V. Reóstato en 0 Ω: "+result.zero.join(", ")+".","success");
 }
 
-function persist(){localStorage.setItem("anodeflex-3-3-6-1iny-fixed",JSON.stringify({fixed:state.fixed,stateNominal:state.nominal}))}
-function caseData(){return {format:"anodeflex-3-3-6-1iny-case",version:1,createdAt:new Date().toISOString(),calibration:{VA:state.nominal.VA,VB:state.nominal.VB,cables:state.nominal.cables,currents:state.nominal.currents,fixed:state.fixed},operation:{V:n("live-v"),targets:Object.fromEntries(ids.map(id=>[id,n("target-"+id)])),rheostats:Object.fromEntries(ids.map(id=>[id,n("reo-"+id)])),rheostatMax:n("reo-max"),tolerancePercent:n("tolerance")},results:state.op}}
-function saveCase(){if(!state.op)return;const blob=new Blob([JSON.stringify(caseData(),null,2)],{type:"application/json"}),url=URL.createObjectURL(blob),link=document.createElement("a");link.href=url;link.download="anodeflex-3-3-6-1iny-"+new Date().toISOString().slice(0,10)+".json";link.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
+function persist(){localStorage.setItem("anodeflex-6n-voltajes-beta-fixed",JSON.stringify({fixed:state.fixed,stateNominal:state.nominal}))}
+function caseData(){return {format:"anodeflex-6n-voltajes-beta-case",version:1,createdAt:new Date().toISOString(),calibration:{VA:state.nominal.VA,VB:state.nominal.VB,voltages:state.nominal.voltages,cables:state.nominal.cables,currents:state.nominal.currents,fixed:state.fixed},operation:{V:n("live-v"),targets:Object.fromEntries(ids.map(id=>[id,n("target-"+id)])),rheostats:Object.fromEntries(ids.map(id=>[id,n("reo-"+id)])),rheostatMax:n("reo-max"),tolerancePercent:n("tolerance")},results:state.op}}
+function saveCase(){if(!state.op)return;const blob=new Blob([JSON.stringify(caseData(),null,2)],{type:"application/json"}),url=URL.createObjectURL(blob),link=document.createElement("a");link.href=url;link.download="anodeflex-6n-voltajes-beta-"+new Date().toISOString().slice(0,10)+".json";link.click();setTimeout(()=>URL.revokeObjectURL(url),1000)}
 function loadCase(file){
   const reader=new FileReader();reader.onload=()=>{try{
-    const data=JSON.parse(reader.result);if(data.format!=="anodeflex-3-3-6-1iny-case"||!data.calibration?.fixed||!data.calibration?.cables||!data.operation)throw new Error();
-    const calibration=AnodeflexModel.dimension({VA:data.calibration.VA,VB:data.calibration.VB,...cableArgs(data.calibration.cables),currents:data.calibration.currents});state.fixed=data.calibration.fixed;state.nominal=calibration;
-    $("nom-va").value=calibration.VA;$("nom-vb").value=calibration.VB;nodes.forEach(node=>$("rc"+node).value=calibration.cables[node]);
-    ids.forEach(id=>{$("nom-i"+id).value=calibration.currents[id];$("fixed-r"+id).textContent=fmt(state.fixed[id],2)+" Ω";$("system-r-"+id).value=Number(state.fixed[id]).toFixed(2);$("target-"+id).value=data.operation.targets[id];setRheostat(id,data.operation.rheostats[id])});
+    const data=JSON.parse(reader.result);if(data.format!=="anodeflex-6n-voltajes-beta-case"||!data.calibration?.fixed||!data.calibration?.voltages||!data.operation)throw new Error();
+    const calibration=AnodeflexModel.dimension({VA:data.calibration.VA,VB:data.calibration.VB,voltages:data.calibration.voltages,currents:data.calibration.currents});state.fixed=data.calibration.fixed;state.nominal=calibration;
+    $("nom-va").value=calibration.VA;$("nom-vb").value=calibration.VB;nodes.forEach(node=>{$("nom-v"+node).value=calibration.voltages[node];$("cable-r"+node).textContent=fmt(calibration.cables[node],3)+" Ω"});
+    ids.forEach(id=>{$("nom-i"+id).value=calibration.currents[id];$("fixed-r"+id).textContent=fmt(state.fixed[id],2)+" Ω";$("system-r-"+id).value=String(state.fixed[id]);$("target-"+id).value=data.operation.targets[id];setRheostat(id,data.operation.rheostats[id])});
     $("fixed-nodes").textContent=nodeText(calibration.voltages);$("live-v").value=data.operation.V;$("reo-max").value=data.operation.rheostatMax||100;$("tolerance").value=data.operation.tolerancePercent||2;persist();solve();showMessage("Caso importado y recalculado correctamente.","success");
-  }catch{showMessage("El archivo no corresponde a un caso ANODEFLEX 3 + 3 con una inyección válido.","error")}};reader.readAsText(file);
+  }catch{showMessage("El archivo no corresponde a un caso ANODEFLEX Beta válido.","error")}};reader.readAsText(file);
 }
 
 function showMessage(text,type){const element=$("message");element.textContent=text;element.className="message show "+type}
@@ -95,7 +95,7 @@ function wireEvents(){
   ids.forEach(id=>{$("reo-"+id).addEventListener("input",solve);$("target-"+id).addEventListener("input",solve);$("system-r-"+id).addEventListener("input",solve)});
   $("reset-rheostats").addEventListener("click",()=>{ids.forEach(id=>setRheostat(id,0));solve()});$("assist").addEventListener("click",assistedAdjustment);$("tolerance").addEventListener("input",solve);$("save-case").addEventListener("click",saveCase);$("load-case").addEventListener("click",()=>$("case-file").click());$("case-file").addEventListener("change",event=>{if(event.target.files[0])loadCase(event.target.files[0]);event.target.value=""});$("print-report").addEventListener("click",()=>window.print());
 }
-function restore(){try{const saved=JSON.parse(localStorage.getItem("anodeflex-3-3-6-1iny-fixed"));if(saved?.fixed&&saved?.stateNominal){state.fixed=saved.fixed;state.nominal=saved.stateNominal;$("nom-va").value=state.nominal.VA;$("nom-vb").value=state.nominal.VB;$("live-v").value=state.nominal.VA;nodes.forEach(node=>$("rc"+node).value=state.nominal.cables[node]);ids.forEach(id=>{$("nom-i"+id).value=state.nominal.currents[id];$("target-"+id).value=state.nominal.currents[id];$("fixed-r"+id).textContent=fmt(state.fixed[id],2)+" Ω";$("system-r-"+id).value=Number(state.fixed[id]).toFixed(2)});$("fixed-nodes").textContent=nodeText(state.nominal.voltages);solve();return}}catch{}computeFixed()}
+function restore(){try{const saved=JSON.parse(localStorage.getItem("anodeflex-6n-voltajes-beta-fixed"));if(saved?.fixed&&saved?.stateNominal){state.fixed=saved.fixed;state.nominal=saved.stateNominal;$("nom-va").value=state.nominal.VA;$("nom-vb").value=state.nominal.VB;$("live-v").value=state.nominal.VA;nodes.forEach(node=>{$("nom-v"+node).value=state.nominal.voltages[node];$("cable-r"+node).textContent=fmt(state.nominal.cables[node],3)+" Ω"});ids.forEach(id=>{$("nom-i"+id).value=state.nominal.currents[id];$("target-"+id).value=state.nominal.currents[id];$("fixed-r"+id).textContent=fmt(state.fixed[id],2)+" Ω";$("system-r-"+id).value=String(state.fixed[id])});$("fixed-nodes").textContent=nodeText(state.nominal.voltages);solve();return}}catch{}computeFixed()}
 
 let installPrompt=null;window.addEventListener("beforeinstallprompt",event=>{event.preventDefault();installPrompt=event;$("install-app").hidden=false});$("install-app").addEventListener("click",async()=>{if(!installPrompt)return;installPrompt.prompt();await installPrompt.userChoice;installPrompt=null;$("install-app").hidden=true});
 buildBranches();wireEvents();restore();if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js"));
