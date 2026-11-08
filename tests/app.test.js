@@ -10,3 +10,9 @@ sandbox.file=JSON.stringify(saved);vm.runInContext('loadCase(file)',sandbox);ass
 const after=vm.runInContext('caseData()',sandbox);assert.equal(after.calibration.VA,saved.calibration.VA);assert.equal(after.calibration.VB,saved.calibration.VB);assert.equal(after.calibration.voltages[3],saved.calibration.voltages[3]);assert.ok(Math.abs(after.calibration.cables[3]-saved.calibration.cables[3])<1e-12);
 console.log('Calibración, validación y exportación/importación: correctas');
 
+
+const targets=Array.from({length:6},(_,i)=>[`${i+1}1`,`${i+1}2`]).flat();
+element('reo-11').value='2.5';element('common-current').value='0.325';vm.runInContext('applyCommonCurrent()',sandbox);
+for(const id of targets)assert.equal(element('target-'+id).value,'0.325');assert.equal(element('reo-11').value,'2.5');
+for(const value of ['', '0', '-1']){element('common-current').value=value;vm.runInContext('applyCommonCurrent()',sandbox);assert.match(element('common-current-message').textContent,/mayor que cero/);for(const id of targets)assert.equal(element('target-'+id).value,'0.325')}
+vm.runInContext('assistedAdjustment()',sandbox);assert.match(element('message').textContent,/Ajuste calculado/);for(const id of targets)assert.ok(Math.abs(vm.runInContext(`state.op.currents["${id}"]`,sandbox)-.325)<.0002,`corriente ${id}`);

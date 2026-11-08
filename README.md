@@ -18,3 +18,5 @@ La app calcula la tensión mínima y los reóstatos a partir de las doce corrien
 ## Pruebas y publicación
 
 Desde la raíz del proyecto, ejecute `node tests/model.test.js`, `node tests/static.test.js` y `node tests/app.test.js`. GitHub Pages sirve los archivos de `docs/`. Después de la primera carga, la app puede instalarse y usar los archivos esenciales sin conexión.
+
+En regulación, ingrese una corriente común y pulse «Aplicar a las 12 ramas». Después puede cambiar cada objetivo individualmente. El ajuste asistido calcula la tensión mínima y reemplaza los valores de los reóstatos.

@@ -14,8 +14,8 @@ assert.ok(!html.includes('type="range"'));
 const manifest=JSON.parse(fs.readFileSync(path.join(root,"manifest.webmanifest"),"utf8"));
 assert.equal(manifest.display,"standalone");assert.equal(manifest.short_name,"ANODEFLEX Beta");
 assert.ok(app.includes('$("live-v").value=result.V'));assert.ok(html.includes("la aplicación calcula el voltaje mínimo y los reóstatos"));
-for(const file of ["styles.css","model.js","app.js"])assert.ok(html.includes(`${file}?v=4`));
-assert.ok(fs.readFileSync(path.join(root,"sw.js"),"utf8").includes("anodeflex-6n-voltajes-beta-v1"));
+for(const file of ["styles.css","app.js"])assert.ok(html.includes(`${file}?v=5`));assert.ok(html.includes("model.js?v=4"));
+assert.ok(fs.readFileSync(path.join(root,"sw.js"),"utf8").includes("anodeflex-6n-voltajes-beta-v2"));
 console.log("Archivos de la app ANODEFLEX 3 + 3: correctos");
 
 for(const node of [1,2,3,4,5,6]){assert.ok(html.includes(`id="cable-r${node}"`));assert.ok(!html.includes(`id="rc${node}"`));}
